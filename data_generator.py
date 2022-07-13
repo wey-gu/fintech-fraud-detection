@@ -61,6 +61,27 @@ def csv_writer(file_path, row_count, row_generator):
             del csv_buffer[:]
 
 
+def csv_writer_ng(file_path, row_count, row_generator, index=False, index_prefix=""):
+    with open(file_path, mode='w') as file:
+        if index:
+            cursor = 0
+        writer = csv.writer(
+            file, delimiter=',', quotechar="'", quoting=csv.QUOTE_MINIMAL)
+        csv_buffer = list()
+        for row in range(row_count):
+            if index:
+                csv_buffer.append((f"{index_prefix}{cursor}",) + row_generator())
+                cursor += 1
+            else:
+                csv_buffer.append(row_generator())
+            if len(csv_buffer) > WRITE_BATCH:
+                writer.writerows(csv_buffer)
+                del csv_buffer[:]
+        if csv_buffer:
+            writer.writerows(csv_buffer)
+            del csv_buffer[:]
+
+
 generator = pydbgen.pydb()
 faker = Faker()
 
@@ -143,15 +164,24 @@ device_pd.to_csv("data/device.csv", header=False, quoting=csv.QUOTE_MINIMAL)
 
 # transaction
 # transaction (transaction_id STRING NOT NULL , src_name STRING NOT NULL, dest_name STRING NOT NULL, amount double NOT NULL , is_fraud bool NOT NULL)
-transaction_df = generator.gen_dataframe(
-    num=TRANSACTION_COUNT, fields=["name", "name", "age"]
-)
-transaction_pd = pd.DataFrame(transaction_df)
-transaction_pd = transaction_pd.set_index(
-    "transaction_" + transaction_pd.index.astype(str)
-)
-transaction_pd.to_csv("data/transaction.csv", header=False, quoting=csv.QUOTE_MINIMAL)
+def trasnaction_generator():
+    """
+    (transaction_id STRING NOT NULL , src_name STRING NOT NULL, dest_name STRING NOT NULL, amount double NOT NULL , is_fraud bool NOT NULL)
+    """
+    amount = faker.random_int(min=10000, max=5000000)
+    is_fraud = faker.boolean()
+    return (
+        faker.name(),
+        faker.name(),
+        amount,
+        is_fraud)
 
+csv_writer_ng(
+    'data/trasnaction.csv',
+    TRANSACTION_COUNT,
+    trasnaction_generator,
+    index=True,
+    index_prefix="transaction_")
 
 # work_for
 def work_for_generator():
